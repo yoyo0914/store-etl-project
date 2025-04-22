@@ -130,7 +130,6 @@ def main():
 
 @app.route('/', methods=['GET', 'POST'])
 def run_etl_http():
-    """Cloud Run HTTP 入口點"""
     try:
         main()
         return "ETL 流程成功完成！", 200
