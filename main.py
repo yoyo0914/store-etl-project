@@ -7,14 +7,11 @@ from google.cloud import storage
 from google.cloud import bigquery
 from flask import Flask, request
 
-# 創建 Flask 應用
 app = Flask(__name__)
 
-# 今天的日期
 today = datetime.now().strftime('%Y-%m-%d')
 
-# 設置您的 GCP 專案 ID 和儲存桶名稱
-PROJECT_ID = "bigquerydemo-457512"  # 替換為您的實際專案 ID
+PROJECT_ID = "bigquerydemo-457512"  
 BUCKET_NAME = f"{PROJECT_ID}-store-data"
 
 def extract_data():
@@ -29,21 +26,18 @@ def extract_data():
 
 def transform_data(products):
     """根據部門需求轉換資料"""
-    # 銷售部資料
     sales_data = [{
         "title": p["title"],
         "price": p["price"],
         "category": p["category"]
     } for p in products]
     
-    # 產品部資料
     product_data = [{
         "title": p["title"],
         "description": p["description"],
         "image": p["image"]
     } for p in products]
     
-    # 財務部資料
     finance_data = [{
         "id": p["id"],
         "price": p["price"],
@@ -60,20 +54,16 @@ def load_to_gcs(data):
     """將資料上傳到 Google Cloud Storage"""
     client = storage.Client()
     
-    # 確保儲存桶存在
     try:
         bucket = client.get_bucket(BUCKET_NAME)
     except Exception:
-        # 如果儲存桶不存在，建立它
         bucket = client.create_bucket(BUCKET_NAME, location="asia-east1")
         print(f"已建立儲存桶: {BUCKET_NAME}")
     
     for dept, dept_data in data.items():
-        # 建立 JSON 檔案名稱
         blob_name = f"{dept}_products_{today}.json"
         blob = bucket.blob(blob_name)
         
-        # 將資料上傳為 JSON
         blob.upload_from_string(
             json.dumps(dept_data, indent=2),
             content_type='application/json'
@@ -86,38 +76,31 @@ def load_to_bigquery(data):
     client = bigquery.Client()
     dataset_id = f"{PROJECT_ID}.store_data"
     
-    # 確保資料集存在
     try:
         client.get_dataset(dataset_id)
     except Exception:
-        # 如果資料集不存在，建立它
         dataset = bigquery.Dataset(dataset_id)
         dataset.location = "asia-east1"
         client.create_dataset(dataset)
         print(f"已建立資料集: {dataset_id}")
     
     for dept, dept_data in data.items():
-        # 建立表格 ID (如果表格已存在會被替換)
         table_id = f"{dataset_id}.{dept}_products"
         
-        # 將資料載入到 BigQuery
         job_config = bigquery.LoadJobConfig(
             source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
             write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
             autodetect=True
         )
         
-        # 轉換為 NDJSON 格式 (每行一個 JSON 物件)
         ndjson_data = "\n".join(json.dumps(item) for item in dept_data)
         
-        # 執行載入作業
         job = client.load_table_from_file(
             file_obj=io.StringIO(ndjson_data),
             destination=table_id,
             job_config=job_config
         )
         
-        # 等待作業完成
         job.result()
         print(f"已載入資料到 BigQuery: {table_id}")
 
@@ -125,20 +108,16 @@ def main():
     try:
         print("開始 ETL 流程...")
         
-        # 1. 抓取資料
         print("從 Fake Store API 抓取資料...")
         products = extract_data()
         print(f"已抓取 {len(products)} 筆產品資料")
         
-        # 2. 轉換資料
         print("轉換資料...")
         transformed_data = transform_data(products)
         
-        # 3. 載入資料到 GCS
         print("載入資料到 Google Cloud Storage...")
         load_to_gcs(transformed_data)
         
-        # 4. 載入資料到 BigQuery
         print("載入資料到 BigQuery...")
         load_to_bigquery(transformed_data)
         
@@ -159,13 +138,9 @@ def run_etl_http():
         return f"ETL 流程失敗: {str(e)}", 500
 
 if __name__ == "__main__":
-    # 當直接執行檔案時執行 main()
-    # 當由 Cloud Run 啟動時以 HTTP 模式運行
     import os
     if os.environ.get('PORT'):
-        # Cloud Run 環境
         port = int(os.environ.get('PORT', 8080))
         app.run(host='0.0.0.0', port=port)
     else:
-        # 本地開發環境
         main()
