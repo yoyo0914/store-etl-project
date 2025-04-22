@@ -137,4 +137,13 @@ def run_etl(request=None):
         return f"ETL 流程失敗: {str(e)}", 500
 
 if __name__ == "__main__":
-    main()
+    # 當直接執行檔案時執行 main()
+    # 當由 Cloud Run 啟動時以 HTTP 模式運行
+    import os
+    if os.environ.get('PORT'):
+        # Cloud Run 環境
+        port = int(os.environ.get('PORT', 8080))
+        app.run(host='0.0.0.0', port=port)
+    else:
+        # 本地開發環境
+        main()

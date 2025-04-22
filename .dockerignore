@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.git/
+.gitignore
+*.env
+*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].json
