@@ -5,6 +5,10 @@ import csv
 from datetime import datetime
 from google.cloud import storage
 from google.cloud import bigquery
+from flask import Flask, request
+
+# 創建 Flask 應用
+app = Flask(__name__)
 
 # 今天的日期
 today = datetime.now().strftime('%Y-%m-%d')
@@ -55,7 +59,14 @@ def transform_data(products):
 def load_to_gcs(data):
     """將資料上傳到 Google Cloud Storage"""
     client = storage.Client()
-    bucket = client.bucket(BUCKET_NAME)
+    
+    # 確保儲存桶存在
+    try:
+        bucket = client.get_bucket(BUCKET_NAME)
+    except Exception:
+        # 如果儲存桶不存在，建立它
+        bucket = client.create_bucket(BUCKET_NAME, location="asia-east1")
+        print(f"已建立儲存桶: {BUCKET_NAME}")
     
     for dept, dept_data in data.items():
         # 建立 JSON 檔案名稱
@@ -74,6 +85,16 @@ def load_to_bigquery(data):
     """將資料載入到 BigQuery"""
     client = bigquery.Client()
     dataset_id = f"{PROJECT_ID}.store_data"
+    
+    # 確保資料集存在
+    try:
+        client.get_dataset(dataset_id)
+    except Exception:
+        # 如果資料集不存在，建立它
+        dataset = bigquery.Dataset(dataset_id)
+        dataset.location = "asia-east1"
+        client.create_dataset(dataset)
+        print(f"已建立資料集: {dataset_id}")
     
     for dept, dept_data in data.items():
         # 建立表格 ID (如果表格已存在會被替換)
@@ -128,8 +149,9 @@ def main():
         print(f"ETL 流程發生錯誤: {e}")
         raise e
 
-def run_etl(request=None):
-    """Cloud Function 入口點"""
+@app.route('/', methods=['GET', 'POST'])
+def run_etl_http():
+    """Cloud Run HTTP 入口點"""
     try:
         main()
         return "ETL 流程成功完成！", 200
