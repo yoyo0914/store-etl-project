@@ -1,0 +1,31 @@
+name: Run Tests
+
+on:
+  push:
+    branches:
+      - main  # 可以設定為你的主要分支名稱
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8  # 你可以根據需要改成 3.7 或 3.9
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install google-cloud-storage google-cloud-bigquery  # 如果需要的話
+
+    - name: Run unit tests
+      run: |
+        python -m unittest discover -s test  # 這樣會自動找到 test/test_etl.py 來執行
